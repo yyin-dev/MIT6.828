@@ -759,3 +759,13 @@ if (lline <= rline) {
 The code in `monitor.c` is easy. For `kdebug.c`, I cannot figured out `stabs[lline].n_desc`. But I think this's fine as I know the idea. 
 
 This achieves full score for Lab1.
+
+
+
+## Summary
+
+Part1 talks about physical address space layout and how BIOS works to load boot loader into memory at `0x7c00`.
+
+Part2 talks about how boot loader switches from 16-bit real mode to 32-bit protected mode, and load kernel from disk into physical memory. Make sure you understand `boot/boot.S` and `boot/main.c`. It also mentions link address, load address, ELF format,  basic usage of `objdump`.
+
+Part3 talks about the starting code of kernel. `kern/entry.S` firstly sets up hardware-supported virtual memory, switches to use virtual memory by setting %cr0, and jumps to C code. Then we see how formatted printing is implemented and how kernel stack is configured. We familarize ourselves with x86 calling convention by implementing the `backtrace` command.
