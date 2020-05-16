@@ -84,6 +84,7 @@ void runcmd(struct cmd *cmd) {
             runcmd(rcmd->cmd);
             break;
         case '|':
+            /* Two forks */
             // Implementation for pipe is explained in the xv6 book Chapter 0.
             pcmd = (struct pipecmd *)cmd;
 
