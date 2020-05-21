@@ -259,6 +259,7 @@ When `syscall` returns, `trap` returns, `trapasm.S:trapret` is executed. At this
 ### System call summary
 
 ```
-printf.c:putc -> trapasm.S -> trap.c:trap -> syscall.c:syscall -> sys_write -> trap.c:trap -> trapasm.S:trapret -> back to user space
+printf.c:putc -> usys.h -> trapasm.S -> trap.c:trap -> syscall.c:syscall -> sys_write -> trap.c:trap -> trapasm.S:trapret -> back to user space
 ```
 
+`putc` calls `write`, which is defined in `usys.h`. `write` contains `INT` instruction, which jumps to `trapasm.S`, which in turn calls `trap`. `Trap` calls `syscall`, which calls the corresponding `sys_write`. After `sys_write` returns, `syscall` returns, `trap` returns, and `trapret` executes, and `iret` returns to the user space. 
