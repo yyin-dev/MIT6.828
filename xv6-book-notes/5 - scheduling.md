@@ -79,3 +79,179 @@ Once scheduler finds a `RUNNABLE` process, it sets per-CPU variable `proc`, swit
 ## Code: mycpu and myproc
 
 Requires disabling interrupts. Read the book for explanation.
+
+
+
+## Sleep and wakeup
+
+Scheduling and locks conceal the existence of one process from another, while sleep and wakeup help processes interact. 
+
+Busy waiting producer-consumer:
+
+```c
+struct q {
+    void *ptr;
+};
+
+void *
+send(struct q *q, void *p) {
+    while (q->ptr != 0)
+        ;
+    q->ptr = p;
+}
+
+void *
+recv(struct q *q) {
+    void *p;
+    while ((p = q->ptr) == 0)
+        ;
+    q->ptr = 0;
+    return p;
+}
+```
+
+Sleep & wakeup producer-consumer
+
+```c
+struct q {
+    void *ptr;
+};
+
+void *
+send(struct q *q, void *p) {
+    while (q->ptr != 0)
+        ;
+    q->ptr = p;
+    wakeup(q); /* wake recv */
+}
+void *
+recv(struct q *q) {
+    void *p;
+    while ((p = q->ptr) == 0) // (*)
+        sleep(q);			  // (**)
+    q->ptr = 0;
+    return p;
+}
+```
+
+However, the "lost wake-up" problem is hard to avoid, which causes the program to hang in this example. Suppose `recv` executes (*) and finds that `q->ptr == 0`. Suppose before it executes (**), `send` executes `q->ptr = p` and calls `wakeup`, which finds no processes sleeping and does nothing. Now `recv` continues executing and goes to sleep. The program hangs.
+
+The problem here is that the invariant that `recv` only sleeps when `q->ptr == 0` is violated. An incorrect fix:
+
+```c
+struct q {
+    struct spinlock lock;
+    void *ptr;
+};
+void *
+send(struct q *q, void *p) {
+    acquire(&q->lock);
+    while (q->ptr != 0)
+        ;
+    q->ptr = p;
+    wakeup(q);
+    release(&q->lock);
+}
+void *
+recv(struct q *q) {
+    void *p;
+    acquire(&q->lock);
+    while ((p = q->ptr) == 0)
+        sleep(q);
+    q->ptr = 0;
+    release(&q->lock);
+    return p;
+}
+```
+
+The problem is that `recv` sleeps while holding the lock, causing deadlock.
+
+We fix by changing the interface of `sleep`: the caller must pass the lock to `sleep` so it can release the lock after the calling process is marked as asleep and waiting on the sleep channel. The lock would force a concurrent `send` to wait until the receiver has finished putting itself to sleep, so that the `wakeup` wouldn't be lost. The right way:
+
+```c
+struct q {
+    struct spinlock lock;
+    void *ptr;
+};
+void *
+send(struct q *q, void *p) {
+    acquire(&q->lock);
+    while (q->ptr != 0)
+        ;
+    q->ptr = p;
+    wakeup(q);
+    release(&q->lock);
+}
+void *
+recv(struct q *q) {
+    void *p;
+    acquire(&q->lock);
+    while ((p = q->ptr) == 0)
+        sleep(q, &q->lock);
+    q->ptr = 0;
+    release(&q->lock);
+    return p;
+}
+```
+
+The fact that recv holds `q->lock` prevents `send` from trying to wake it up between `recv`’s check of `q->ptr` and its call to `sleep`.
+
+The xv6's implementation of ` sleep` and `wake` follow the above-mentioned interface. 
+
+
+
+## Code: sleep and wakeup
+
+Basic idea: `sleep` marks the current process as `SLEEPING` and call `sched` to release the processor; `wakeup` looks for a process waiting on the given channel and marks it as `RUNNABLE`.
+
+`sleep` first acquires `ptable.lock`. Now the process holds `ptable.lock` and `lk` . Holding `lk` **was** necessary, to ensure no other processes cannot call `wakeup` before it sleeps. Now that it holds `ptable.lock`, it's safe to release `lk`. Some other processes might try to call `wakeup`, but `wakeup` requires acquiring `ptable.lock`. So the "lost-wakeup" is avoided.
+
+Now `sleep` holds `ptable.lock` and no other locks, it can put the process to sleep: record sleep channel, change proces state, and calls `sched`. 
+
+Some time later, a process calls `wakeup(chan)`. `Wakeup` acquires `ptable.lock` and calls `wakeup1` which does the real work. `Wakeup1` searches the process table for `SLEEPING` processes with the given `chan`, and changes the state to `RUNNABLE`. The next time the seheduler runs, the process(es) is ready to run.
+
+The `sleep` should be called inside a loop to handle possible spurious wakeups.
+
+It's ok if multiple uses of sleep/wakeup uses the same channel: they would experience spurious wakeups, but looping tolerate this problem.
+
+
+
+>  Question: `sleep` puts the current process to sleep whlie holding `ptable.lock`, wouldn't that prevent other proceses from acquiring the lock? Many functions like `exit`, `wait` requies acquiring `ptable.lock`. 
+
+Answer: Yes. Indeed `sleep` puts the process to sleep with `ptable.lcok` held. However, notice that `sleep` calls `sched` to goes to sleep, and the only other call to `sched` are In `yield`, where `sched` is immediately followed by the release of `ptable.lock`. As we know, `sched` causes return in another process. In other words, the `sched` call in `sleep` causes return of `sched` in `yield`, and the release of `ptable.lock`. So this's not a problem and indeed `ptable.lock` would be released when the process goes to sleep.
+
+
+
+## Code: pipes
+
+In xv6, pipes are implemented using `sleep` and `wakeup`.
+
+The pipe code uses separate sleep channels for reader and writer (`p->nread` and `p->nwrite`), to make the system more efficient when there're many readers and writers. 
+
+
+
+## Code: wait, exit, and kill
+
+The `wait` system call allows a parent process to wait for a child to exit. When a child exits, it does not die immediately. Instead, it switches to the `ZOMBIE` process state until the parent calls `wait` to learn of the exit. The parent is then responsible for freeing the memory associated with the process and preparing the `struct proc` for reuse. If the parent exits before the child, the `init` process adopts the child and waits for it, so that every child has a parent to clean up after it.
+
+The implementation challenge is the possible races between parent and child `wait` and `exit`, as well as `exit` and `exit`. `Wait` begins by acquiring `ptable.clock`. If the current process has children but none has exited, it calls `sleep`  and would releases `ptable.lock`. This's a special case: previously when we're switching between processes, we always holds the `ptable.lock` during the transitioning.
+
+The child process can do most of the clearnup in `exit`, but only the parent process can free `p->kstack` and `p->pgdir`, as the child process's call to `exit` stills requires the stack and the paging. 
+
+`kill` lets one process to request another to be terminated. It'll be complex for `kill` to destory the victim process as it might be executing on another CPU, or sleeping while midway throught update some kernel data structure. Thus, `kill` does very little: sets the victime's `p->killed` and if it's sleeping, wakes it up. Eventually the victim would enter/leave the kernel, and the code in `trap` would call `exit` if `p->killed` is set. 
+
+If the victim process is in `sleep`, the call of `wakeup` causes spurious wakeup. However, this's not a problem as xv6 always wraps calls to `sleep` in `while` loop. 
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+##### 
