@@ -42,6 +42,10 @@ Implements copy-on-write fork.
 
 ## Part C: Preemptive Multitasking and Inter-Process communication (IPC)
 
+Up to this point, we only have preemptive multitasking. The round-robin scheduling we implemented in Part B only functions when the user process voluntarily releases the CPU.
+
+
+
 ### Clock Interrupts and Preemption
 
 Explains `FL_IF` flag and the interrupt schemem in JOS. Implements hardware interrupt handling scheme.

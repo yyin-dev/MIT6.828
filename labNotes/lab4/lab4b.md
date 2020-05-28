@@ -81,6 +81,8 @@ If the user environment is *already* running on the user exception stack when an
 
 > **Exercise 11.** Finish `set_pgfault_handler()` in `lib/pgfault.c`.
 
+`pgfault_upall` is interesting. The manipulation of trapframe is similar to HW5.
+
 ```diff
 $ git diff
 diff --git a/kern/syscall.c b/kern/syscall.c
