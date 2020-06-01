@@ -18,27 +18,61 @@ static size_t page_size;
 // Returns an aligned value.
 #define align_down(x, a) ((x) & ~((typeof(x))(a)-1))
 
-#define AS_LIMIT (1 << 25)   // Maximum limit on virtual memory bytes
+#define AS_LIMIT (1 << 25)   // Maximum limit on virtual memory bytes (AS: address space)
 #define MAX_SQRTS (1 << 27)  // Maximum limit on sqrt table entries
 static double *sqrts;
+
+////////////////////////// Added global variables /////////////////////////
+#define DEBUG
+static int count = 0;
+
+static void *prev_mapped = NULL;
+///////////////////////////////////////////////////////////////////////////
 
 // Use this helper function as an oracle for square root values.
 static void
 calculate_sqrts(double *sqrt_pos, int start, int nr) {
     int i;
-
-    for (i = 0; i < nr; i++)
+    for (i = 0; i < nr; i++) {
         sqrt_pos[i] = sqrt((double)(start + i));
+    }
 }
 
 static void
 handle_sigsegv(int sig, siginfo_t *si, void *ctx) {
-    // Your code here.
+#ifdef DEBUG
+    printf("Handler called\n");
+#endif
 
-    // replace these three lines with your implementation
+    // Your code here.
     uintptr_t fault_addr = (uintptr_t)si->si_addr;
-    printf("oops got SIGSEGV at 0x%lx\n", fault_addr);
-    exit(EXIT_FAILURE);
+    uintptr_t aligned = align_down(fault_addr, page_size);
+    uintptr_t start_index = (aligned - (uintptr_t)sqrts) / sizeof(double);
+    void *mapped;
+
+    if (prev_mapped) {
+        if (munmap(prev_mapped, page_size) < 0) {
+            printf("munmap fails\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if ((mapped = mmap((void *)aligned, page_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)) < 0) {
+        printf("mmap fails\n");
+        exit(EXIT_FAILURE);
+    }
+
+    prev_mapped = mapped;
+
+#ifdef DEBUG
+    ++count;
+    printf("count: %d\n", count);
+
+    printf("fault_addr: %p, try to map: %p, mapped: %p\n", fault_addr, aligned, mapped);
+    printf("Print value at allocated location: *(%p) = %ld\n", mapped, *(uintptr_t *)mapped);
+#endif
+
+    calculate_sqrts(mapped, start_index, page_size / sizeof(double));
 }
 
 static void
@@ -100,6 +134,10 @@ test_sqrt_region(void) {
     }
 
     printf("All tests passed!\n");
+#ifdef DEBUG
+    printf("MAX page allowed: %ld\n", AS_LIMIT / page_size);
+    printf("Number of pages neede: %ld\n", MAX_SQRTS * sizeof(double) / page_size);
+#endif DEBUG
 }
 
 int main(int argc, char *argv[]) {
