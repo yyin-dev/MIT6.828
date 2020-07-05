@@ -18,7 +18,7 @@ void page_free(struct PageInfo *pp);
 
 `boot_alloc`: allocates physical memory from the end of the `.bss` section of the kernel. 
 
-`mem_init`: allocates space for the `pages` array of `struct PageInfo`.
+`mem_init`: allocates space for `kern_pgdir` (page table used by kernel), as well as `pages` array of `struct PageInfo`.
 
 `page_init`: initialize `pages` and `page_free_list`, determining available physical memory.
 
