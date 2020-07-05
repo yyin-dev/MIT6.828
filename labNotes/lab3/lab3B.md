@@ -202,7 +202,7 @@ index 07e1480..9d47da6 100644
 +
 ```
 
-The system call interface works as follows. `kern/trap.c` dispatches interrupt with `trapno = T_SYSCALL`  to `kern/syscall.c:syscall`, which distributes to actual implementations of the system calls. `inc/syscall.c` defines the syscall interfaces exposed to users in `inc/lib.h`. When the user invokes a system call, `lib/syscall.c:syscall`'s inline assembly uses `int $0x30` to generate a syscall interrupt, which would be handled by `trap`.
+The system call interface works as follows. `inc/syscall.c` defines the syscall interfaces exposed to users in `inc/lib.h`. When the user invokes a system call, `lib/syscall.c:syscall`'s inline assembly uses `int $0x30` to generate a syscall interrupt, which would be handled by `trap`. `kern/trap.c:trap` dispatches interrupt with `trapno = T_SYSCALL`  to `kern/syscall.c:syscall`, which distributes to actual implementations of the system calls. 
 
 This's not a not a difficult exercise, but took me longer than expected. Several subtle points:
 

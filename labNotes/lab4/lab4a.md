@@ -2,7 +2,17 @@
 
 ## Multiprocessor support
 
-Explains SMP model, BSP, AP, LAPIC, MMIO.
+Explains SMP model, BSP, AP, LAPIC, MMIO.  
+
+SMP: Symmetric Multiprocessing. All CPUs have equivalent access to system resources such as memory and I/O buses.
+
+BSP: Bootstrap Processor. 
+
+AP: Application Processor. Activated by BSP after the OS is up and running.
+
+LAPIC: Local APIC unit. For delivering interrupts to CPUs.
+
+MMIO: Memory-mapped I/O.
 
 > **Exercise 1.** Implement `mmio_map_region` in `kern/pmap.c`. To see how this is used, look at the beginning of `lapic_init` in `kern/lapic.c`. You'll have to do the next exercise, too, before the tests for `mmio_map_region` will run.
 
@@ -233,7 +243,7 @@ SMP: CPU 0 found 4 CPU(s)
 kernel panic on CPU 0 at kern/trap.c:349: Page Fault in Kernel-Mode at 0xef8030f0.
 ```
 
-Refer to `memlayout.h`, we see the address is in `[MMIOBASE, MMIOLIM]`. This makes sense. As mentioned earlier, this area is for memory-mapped I/O for LAPIC. How could this fault? Why cannot kernel write to it? Then the answer is obvious: we didn't mark the page as writable in `mmio_map_region` previously in exercise3. 
+Refer to `memlayout.h`, we see the address is in `[MMIOBASE, MMIOLIM]`. As mentioned earlier, this area is for memory-mapped I/O for LAPIC. How could this fault? Why cannot kernel write to it? Then the answer is obvious: we didn't mark the page as writable in `mmio_map_region` previously in exercise3. 
 
 ```diff
 @@ -643,7 +643,7 @@ mmio_map_region(physaddr_t pa, size_t size)
@@ -438,7 +448,7 @@ index fc42204..2dda2ac 100644
 
    One possible question is that, in JOS, `trapentry.S` builds the trapframe. In xv6, `trapasm.S` builds the trapframe, but `swtch` also builds a `struct context`. Why JOS doesn't do something similar?
 
-   In xv6, the scheduler thread plays a role in scheduling:
+   In xv6, the scheduler thread plays a role in scheduling. The reason for a separate scheduling thread is "it's sometimes not safe for it to execute on any process's kernel stack".
 
    ```
    Proc1_user --> Proc1_kernel --> schedulerThread --> Proc2_kernel --> Proc2_user 
@@ -447,18 +457,41 @@ index fc42204..2dda2ac 100644
    		  trapframe		context				context			trapframe
    ```
 
-   The saving/restoring of trapframe handles the transition between user/kernel space, while saving/restoring of `struct context` handles transition between user proce and scheduler. The fact that we are transition using assembly code, `swtch.S`, instead of a function call, makes saving/restoring registers necessary.
+    A possible point of confusion is "thread" and "process" term in xv6. The "user environmen", `struct Env`, in JOS is the same as "process", `struct proc`, in xv6, which is similar to the common meaning of Linux process. How about the "user thread" and "kernel thread"? Why there's no such thing as `struct Thread`?
+    
+    The *thread* here is different from a Linux thread, or a `pthread` in C, which the user can manipulate. The thread here means "a thread of execution" and a process always have a user thread and a kernel thread. The thread is switched mainly by saving/restoring registers and switching stacks. For example, when making a system call, registers are saved/restored with `struct Trapframe`, and the process switches from user stack to kernel stack. In other words, "user thread" and "kernel thread" in xv6 just means the same process, but executing in user space/kernel space. This is readily supported, since we can already switch between user mode and kernel mode. Thus, no `struct Thread` is needed. This are just (possibly) confusing terms.  
 
-   In JOS, no scheduler thread is involved. Also, the scheduling is all done in C.
+    The saving/restoring of trapframe handles the transition between user/kernel space, while saving/restoring of `struct context` handles transition between user proc and scheduler. The fact that we are transition using assembly code, `swtch.S`, instead of a function call, makes saving/restoring registers necessary.
 
-   ```
+    In JOS, no scheduler thread is involved. Also, the scheduling is all done in C: `sys_yield` calls `sched_yield`, which searchs the `envs` for another runnable env.
+
+    ```
    Proc1_user --> Proc1_kernel --> Proc2_kernel --> Proc2_user 
    		    ^								  ^
    		    |								  |
    		  trapframe	        			trapframe
    ```
 
-   
+    One subtle (and interesting) issue related to multiprocess scheduling is the state of kernel stack. We know kernel stack has two main usages: (1) pushing registers when trapping into kernel mode (and restoring when returnning into user mode); (2) running kernel code. What does the stack look like just after trapping into kernel space, and what does it look like just after returning back to user space?
+
+    When just trapping into kernel mode, the top of kernel stack contains `struct Trapframe` and then stack frames for function call to `trap`. `env->env_tf` is set to point to the `struct Trapframe` for later use. Then the kernel code executes on the kernel stack. When the current process is to be de-scheduled: `sched_yield` -> `env->run` -> `env_pop_tf(env->env_tf)`. The definition of `env_pop_tf` is:   
+    ```C
+    void env_pop_tf(struct Trapframe *tf) {
+        // Record the CPU we are running on for user-space debugging
+        curenv->env_cpunum = cpunum();
+
+        asm volatile(
+            "\tmovl %0,%%esp\n"
+            "\tpopal\n"
+            "\tpopl %%es\n"
+            "\tpopl %%ds\n"
+            "\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
+            "\tiret\n"
+            : : "g" (tf) : "memory");
+        panic("iret failed");  /* mostly to placate the compiler */
+    }
+    ```
+    `%0` refers to the argument `tf`. So setting `%esp` to be `tf` restores the kernel stack to the initial state (when just trapping into kernel mode) completely!
 
 ## System Calls for Environment Creation
 

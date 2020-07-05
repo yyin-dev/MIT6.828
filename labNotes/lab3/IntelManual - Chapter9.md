@@ -2,7 +2,7 @@
 
 Interrupts are asynchronous, while exceptions are synchronous.
 
-Souce for interrupts: (1) Maskable (external) interrupts, signalled via INTR pin; (2) Nonmaskable interrupts, signalled via NMI (Non-Maskable Interrupt) pin.
+Source for interrupts: (1) Maskable (external) interrupts, signalled via INTR pin; (2) Nonmaskable interrupts, signalled via NMI (Non-Maskable Interrupt) pin.
 
 Source for exceptions: (1) Processor detected. Further classfied as faults, traps and aborts; (2) Programmed.
 
@@ -33,7 +33,7 @@ If more than one interrupts/exceptions are pending, the processor first services
 
 ## 9.4 Interrupt Descriptor Table
 
-IDT associates each interrupt/excepion identifier with a descriptor of the handler. Like GDT/IDT, IDT is an array of 8-byte descriptors. `IDT index = interrupt/exception identifier * 8`. 
+IDT associates each interrupt/excepion identifier with a descriptor of the handler. Like GDT/LDT, IDT is an array of 8-byte descriptors. `IDT address = interrupt/exception identifier * 8`. 
 
 IDT can be anywhere in the physical memory. The 6-byte IDT regsiter (IDTR) stores the linear address of the base address and limit of IDT, and can be accesses using `LIDT` and `SIDT`. `LIDT` loads into IDTR, and `SIDT` copies IDTR. `LIDT` can only be executed in privilege mode. 
 
@@ -57,7 +57,7 @@ An interrupt/trap gate points indirectly to a procedure. The selector of the gat
 
 ![img](https://pdos.csail.mit.edu/6.828/2018/readings/i386/fig9-4.gif)
 
-The control transfer to a handler uses the stack to store information needed for future resumption. With privilege transition, old %ss, %esp are pushed onto the stack and a new stack indicated by the TSS is used. Then %eflags, %cs, %eip. Some also pushes the error code.
+The control transfer to a handler uses the kernel stack, indicated by TSS, to store information needed for future resumption, because the user stack might have already been corrupted. With privilege transition, old %ss, %esp are pushed onto the stack. Then %eflags, %cs, %eip. Some also pushes the error code.
 
 ![img](https://pdos.csail.mit.edu/6.828/2018/readings/i386/fig9-5.gif)
 

@@ -54,7 +54,7 @@ void page_remove(pde_t *pgdir, void *va)
 
 ## Part 3: Kernel Address Space
 
-Add code in `mem_init` to map `pages` at `UPAGES`, kernel stack at `KSTACKTOP-KSTKSIZE`, and 256MB of physical memory at `KERNBASE`. Basically three calls to `boot_map_region`.
+Add code in `mem_init` to map `pages` at `UPAGES`, kernel stack at `KSTACKTOP-KSTKSIZE`, and 256MB of physical memory at `KERNBASE`. Basically three calls to `boot_map_region`. Because of this, JOS can use at most 256MB of physical memory!
 
 
 

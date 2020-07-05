@@ -20,8 +20,7 @@ In x86, segmenting is always enabled. Virtual address consists a 15-bit selector
 
 Data structures used in segmentation:
 
-- Descriptor
-- Descriptor table
+- Descriptor (and descriptor table)
 - Selector
 - Segment Registers
 
@@ -34,6 +33,8 @@ Data structures used in segmentation:
 #### Descriptor table
 
 Segment descriptors are stored in either Global Descriptor Table (GDT) or Local Descriptor Table (LDT). A descriptor table is simply an array of 8-byte entries that contain descriptors.
+
+LDT stores memory segments specific to a specific program, while GDT stores global segments.
 
 The processor locates the GDT and the current LDT by means of the GDTR and LDTR registers. These registers store the base addresses of the tables in the **linear** address space and store the segment limits. Use instructions of`LGDT`, `SGDT`, `LLDT`, and `SLDT`.
 
@@ -61,7 +62,7 @@ Page translation is enabled when the PG bit of %cr0 is set: linear address --> p
 
 #### Page frame
 
-A 4k-bute unit of continugous addresses of physical memory. 
+A 4k-byte unit of contiguous addresses of physical memory. 
 
 #### Linear Address
 

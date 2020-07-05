@@ -6,7 +6,7 @@ We'll develop a FS much simpler than most real FSes, including xv6, but supporti
 
 ### On-disk File System Structure
 
-Most Unix FS divide disk space into two main parts: *inode* region and *data* region. Unix FS assigns one inode to each file. The inode holds metadata about the file, while the data region stores file data and directory meta-data. Directory entries contain file names and pointers to inodes. A file is *hard-linked* if multiple directory entries refer to that file's inode. Our FS wouln't support hard links, so we don't need this level of indirection: we won't use inodes at all and store all of a file's metadata within the directory entry describing that file.
+Most Unix FS divide disk space into two main parts: *inode* region and *data* region. Unix FS assigns one inode to each file. The inode holds metadata about the file, while the data region stores file data and directory meta-data. Directory entries contain file names and pointers to inodes. A file is *hard-linked* if multiple directory entries refer to that file's inode. Our FS wouldn't support hard links, so we don't need this level of indirection: we won't use inodes at all and store all of a file's metadata within the directory entry describing that file.
 
 Files and directories consists of a series of data blocks, which can be scattered throughout the disk. Our FS allows user to *read* directory metadata, enabling user to implement directory scanning operations like `ls` themselves. The disadvantage of this approach is that it makes application programs dependent on the format of the directory meta-data. 
 
@@ -22,7 +22,7 @@ Metadata for the FS itself is stored at *superblocks*. Our FS has exactly one su
 
 ### File Meta-data
 
-![FileStructore](/home/yy0125/Desktop/MIT6.828/labNotes/lab5/FileStructore.png)
+![FileStructore](./FileStructore.png)
 
 Defined in `struct File`. As we don't have inodes, the metadata is stored in a directory entry on disk. Unlike in real FSes, we use this to represent file metadata as it appears both on disk and in memory.
 
@@ -47,7 +47,7 @@ But it's imporant to be familar with the provided code and other interfaces.
 
 ## Disk Access
 
-We'll not add an IDE disk driver to the kernel with necessary ssytem calls, but implement the IDE disk driver as part of the user-level file system envionment. This is easy if we use polling, "programmed I/O" (PIO)-based access and don't use disk interrupts. Interrupt-driven device drivers in user mode is possible but harder. 
+We'll not add an IDE disk driver to the kernel with necessary system calls, but implement the IDE disk driver as part of the user-level file system envionment. This is easy if we use polling, "programmed I/O" (PIO)-based access and don't use disk interrupts. Interrupt-driven device drivers in user mode is possible but harder. 
 
 The x86 processor uses the IOPL bits in the EFLAGS register to determine whether 32-bit protected-mode code is allowed to perform special device I/O instructions such as the IN and OUT instructions. So giving I/O privilege to the FS environment is the only thing needed to allow the FS to access the registers. In effect, the IOPL bits in the EFLAGS provides the kernel with a simple "all-or-nothing" method of controlling whether user-mode code can access I/O space. In our case, we want the file system environment to be able to access I/O space, but not any other environments.
 
@@ -79,7 +79,7 @@ No. The registers are saved and restored automatically by process switching code
 
 ## The Block Cache
 
-Code in `fs/bc.c`. JOS uses disk of size 3GB or less. We reserve a 3GB region of the file system environment's address space from 0x10000000 (`DISKMAP`) up to 0xD0000000 (`DISKMAP + DISKMAX`), as a "memory-mapped" version of the disk. The example, disk block 0 is mapped at virtual address 0x10000000, disk block 1 is mapped at virtual address 0x10001000, and so on. The `diskaddr` function in `fs/bc.c` implements this translation. We reserve most of the file system environment's address space in this way.
+Code in `fs/bc.c`. JOS uses disk of size 3GB or less. We reserve a 3GB region of the file system environment's address space from 0x10000000 (`DISKMAP`) up to 0xD0000000 (`DISKMAP + DISKMAX`), as a "memory-mapped" version of the disk. For example, disk block 0 is mapped at virtual address 0x10000000, disk block 1 is mapped at virtual address 0x10001000, and so on. The `diskaddr` function in `fs/bc.c` implements this translation. We reserve most of the file system environment's address space in this way.
 
 It's slow to read the entire disk into memory. So we do something similar to demand paging, where we only allocate pages in the disk map region and read the correspoinding block from the disk in response to a page fault in the region. 
 

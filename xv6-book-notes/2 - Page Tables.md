@@ -20,18 +20,17 @@ At this stage, we only have *virtual address*, but no *virtual memory* yet.
 
 `Entrypgdir` defined by `main.c` is used by `entry.S` and enables kernel to run. However, it's soon replaced by a new page table by calling `kvmalloc`. 
 
-Each process has a page table. A process's user memory is `[0x0, KERNBASE]` (at most 2GB).
+Each process has a page table. A process's user memory is `[0x0, KERNBASE]` (at most 2GB). So in xv6, **each user process's address space is 2GB**, no matter how large/small the physical memory is. Practically, xv6 only uses 256MB physical memory.
 
-When a process asks for more memory, xv6 first finds free physical pages, then adds PTEs to the page table, with flags set.  
+When a process asks for more memory, xv6 first finds free physical pages, then adds PTEs to the page table, with flags set.  Read the following explanation alongside the picture below:
 
-Kernel instruction and data are mapped above `KERNBASE` in every process's memory space. It maps virtual addresses `[KERNBASE, KERNBASE+PHYSTOP]` to physical addresses `[0, PHYSTOP]` (`PHYSTOP` is the top of physical memory). `KERNBASE` is `0x80000000`. Essentially, the upper half of the memory space is mapped to the physical memory. The advantage of this mapping is that the kernel can manipulate the physical memory easily, while the disadvantage is that xv6 cannot utilize more than 2GB of physical memory. Thus, xv6 requires `PHYSTOP` to be at most 2GB. Also, memory-mapped I/O devices appear from `0xFE000000`, so `PHYSTOP` must be at most 2GB - 16MB.
+Kernel instruction and data are mapped above `KERNBASE+EXTMEM` in every process's memory space (`EXTMEM` = `0x100000`). It maps virtual addresses `[KERNBASE, KERNBASE+PHYSTOP]` to physical addresses `[0, PHYSTOP]` (`PHYSTOP` is the top of physical memory, `PHYSTOP` = `0xE000000` = `224MB`). `KERNBASE` is `0x80000000`. Essentially, the upper half of the memory space is mapped to the physical memory. The advantage of this mapping is that the kernel can manipulate the physical memory easily, while the disadvantage is that xv6 cannot utilize more than 2GB of physical memory. Thus, xv6 requires `PHYSTOP` to be at most 2GB. Also, memory-mapped I/O devices appear from `0xFE000000`, so `PHYSTOP` must be at most 2GB - 32MB. So theoretically, xv6 can use 2GB of physical memory, with 32MB dedicated for memory-mapped I/O devices.
 
-Note that xv6 uses only 256MB of physical memory. `[0, PHYSTOP]` (`PHYSTOP` is `0xE000000`) and `[0xFE000000, 0xFFFFFFFF]` add up to be 256MB. Also note that {kernel text, kernel data, free memory} in virtual memory space maps to {Extended Memory} in physical memory. 
+Note that xv6 uses only 256MB of physical memory. `[0, PHYSTOP] = 224MB` (`PHYSTOP` is `0xE000000`) and `[0xFE000000, 0xFFFFFFFF] = 32MB` add up to be 256MB. Also note that {kernel text, kernel data, free memory} in virtual memory space maps to {Extended Memory} in physical memory. 
 
-![](/home/yy0125/Desktop/MIT6.828/xv6-book-notes/memory space.jpg)
+![](./memoryspace.jpg)
 
 Having each process's page table contain mappings for both user memory and the entire kernel is conveninent for switching from user code to kernel code during syscalls and interrupts: such switches don't require page table switches. Normally the kernel doesn't have its own page table, but borrows the process's page table. 
-
 
 
 ## Code: creating an address space

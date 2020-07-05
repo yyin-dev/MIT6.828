@@ -40,7 +40,7 @@ For `initcode.S`, need to ensure that: `int` traps into kernel mode, the right k
 
 User stack shouldn't be used when trapping into the kernel. X86 sets up a *task segment descriptor* through which the hardware loads a stack segment selector and a new value for %esp.
 
-When a trap occurs, the hardware does the folliowing. If iwe're originally in user mode, it loads %esp and %ss from the task segment descriptor, and pushes old user %ss and %esp onto the new stack. If originally in kernel mode, none of the above happens. Then %eflags, %cs, %eip are pushed. For some traps, an error word is pushed. Then %eip and %cs are loaded from relevant IDT entry. 
+When a trap occurs, the hardware does the following. If we're originally in user mode, it loads %esp and %ss from the task segment descriptor, and pushes old user %ss and %esp onto the new stack. If originally in kernel mode, none of the above happens. Then %eflags, %cs, %eip are pushed. For some traps, an error word is pushed. Then %eip and %cs are loaded from relevant IDT entry. 
 
 xv6 uses `vector.pl` to generate entry points that the IDT entries point to. Each entry pushes an error code if the processor didn't, pushes the interrupt number, and jumps to `alltraps` in `trapasm.S`.
 
@@ -49,7 +49,7 @@ So the entire execution flow of an system call:
 ```
 	int n
 -> 	hardware: loads new %esp and %ss, pushes old %ss and %esp,
-	pushes %efalgs, %cs, %eip, an error word, load %esp and %cs from IDT
+	pushes %eflags, %cs, %eip, an error word, load %esp and %cs from IDT
 -> 	vector entry: pushes interrupt number, jumps to alltraps
 -> 	alltraps: pushes registers to form a `struct trapframe`,
 	pushes %esp as arg and call `trap`

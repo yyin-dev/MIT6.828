@@ -53,7 +53,7 @@ We call the state of the user environment at the time of the user-mode page faul
 If there is no page fault handler registered, the JOS kernel destroys the user environment. Otherwise, the kernel sets up a trap frame, `struct UTrapframe`, on the exception stack.
 
 ```
-					<-- UXSTACKTOP
+                    <-- UXSTACKTOP
 trap-time esp
 trap-time eflags
 trap-time eip
@@ -248,6 +248,23 @@ index a975518..5c57a89 100644
 ## Implementing Copy-on-Write Fork
 
 Explains the logic flow in `fork()` and `pgfault()`.
+
+`fork()` create a new environment, then scan through the parent environment's entire address space and set up corresponding page mappings in the child. The key difference is that, while `dumbfork()` copied pages, `fork()` will initially only copy page mappings. 
+
+The basic control flow for fork() is as follows:
+
+- The parent installs `pgfault()` as the C-level page fault handler, using `set_pgfault_handler()`.
+- The parent calls `sys_exofork()` to create a child environment.
+- For each writable or copy-on-write page in its address space below `UTOP`, the parent calls `duppage`, which should map the page copy-on-write into the address space of the child and then remap the page copy-on-write in its own address space. `duppage` sets both PTEs so that the page is not writeable, and to contain `PTE_COW` in the "avail" field to distinguish copy-on-write pages from genuine read-only pages.
+- The exception stack is not remapped this way, however. Instead you need to allocate a fresh page in the child for the exception stack. Since the page fault handler will be doing the actual copying and the page fault handler runs on the exception stack, the exception stack cannot be made copy-on-write.
+- The parent sets the user page fault entrypoint for the child to look like its own.
+The child is now ready to run, so the parent marks it runnable.
+
+Control flow for the user page fault handler:  
+- The kernel propagates the page fault to `_pgfault_upcall`, which calls `fork()`'s `pgfault()` handler.
+- pgfault() checks that the fault is a write (check for FEC_WR in the error code) and that the PTE for the page is marked PTE_COW. If not, panic.
+- pgfault() allocates a new page mapped at a temporary location and copies the contents of the faulting page into it. Then the fault handler maps the new page at the appropriate address with read/write permissions, in place of the old read-only mapping.
+- The user-level `lib/fork.c` code must consult the environment's page tables for several of the operations above (e.g., that the PTE for a page is marked PTE_COW). The kernel maps the environment's page tables at UVPT exactly for this purpose. It uses a clever mapping trick to make it to make it easy to lookup PTEs for user code. `lib/entry.S` sets up `uvpt` and `uvpd` so that you can easily lookup page-table information in lib/fork.c.
 
 > **Exercise 12.** Implement `fork`, `duppage` and `pgfault` in `lib/fork.c`.
 

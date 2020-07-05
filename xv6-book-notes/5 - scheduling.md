@@ -19,7 +19,7 @@ Steps involved in a switch from one user process to another:
 - context switch to the new process's kernel thread
 - trap return to the new process's user thread
 
-Xv6 needs scheduler thread since it's sometimes unsafe to execute on any process's kernel stack. Let's example switch between kernel thread and the scheduler thread.
+Xv6 needs scheduler thread since it's sometimes unsafe to execute on any process's kernel stack. Let's examine switch between kernel thread and the scheduler thread.
 
 Switching from one thread to another involves saving current thread's CPU registers, and restoring the new thread's CPU registers. Saving and restoring %esp and %eip causes change of stack and the executed code.
 
