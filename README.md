@@ -6,3 +6,4 @@ This repo contains materials when studying [MIT 6.828](https://pdos.csail.mit.ed
 
 [This repo](https://github.com/yinfredyue/MIT6.828-lab) contains my source code of labs.
 
+I use notes in `./labNotes` to review for interview. Less important topics are marked with `[x]`, 

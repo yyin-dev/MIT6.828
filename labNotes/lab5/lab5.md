@@ -10,6 +10,70 @@ Most Unix FS divide disk space into two main parts: *inode* region and *data* re
 
 Files and directories consists of a series of data blocks, which can be scattered throughout the disk. Our FS allows user to *read* directory metadata, enabling user to implement directory scanning operations like `ls` themselves. The disadvantage of this approach is that it makes application programs dependent on the format of the directory meta-data. 
 
+### Soft link and hard link
+
+Difference between *symbolic link* and *hard link*: hard link directly points to the inode maintained by the OS, deleting one hard link doesn't affect other links accessing the file; a symbolic link (aka soft link) is a pointer to another link. If the earlier link is deleted, the symbolic link wouldn't work.  
+
+Soft link example:
+```console
+$ echo "This is the source file." > source.txt
+$ cat source.txt
+This is the source file.
+$ ln -s source.txt softLink.txt
+$ cat source.txt
+This is the source file.
+$ cat softLink.txt
+This is the source file.
+$ ls -lis
+total 0
+ 9288674231454612 0 lrwxrwxrwx 1 yy0125 yy0125 10 Jul 13 06:44 softLink.txt -> source.txt
+16325548649219578 0 -rwxrwxrwx 1 yy0125 yy0125 25 Jul 13 06:44 source.txt
+$ rm source.txt
+$ cat softLink.txt
+cat: softLink.txt: No such file or directory
+```
+Observation: `source.txt` and `softLink.txt` displays the same data. However, they have different inode number and `softLink.txt` points to `source.txt`: `softLink.txt -> source.txt`. If `source.txt` is deleted, `softLink.txt` is no longer available. Soft link is just a shortcut pointing to the original file.  
+
+Note that the size of `source.txt` is 25 bytes (the length of "This is the source file.\0"), while the size of `softLink.txt` is 10 bytes (the length of "source.txt")! 
+```
+   inode ["This is the source file."]   inode["source.txt"]
+            ^                               ^
+            |                               |
+        source.txt                      softLink.txt
+```
+
+Hard link example:
+```console
+$ echo "This is the source file." > source.txt
+$ cat source.txt
+This is the source file.
+$ ln source.txt hardLink.txt
+$ cat source.txt
+This is the source file.
+$ cat hardLink.txt
+This is the source file.
+$ ls -lis
+total 0
+16325548649219578 0 -rwxrwxrwx 2 yy0125 yy0125 25 Jul 13 06:44 hardLink.txt
+16325548649219578 0 -rwxrwxrwx 2 yy0125 yy0125 25 Jul 13 06:44 source.txt
+$ echo "Changed." > source.txt
+$ cat source.txt
+Changed.
+$ cat hardLink.txt
+Changed.
+$ rm source.txt
+$ cat hardLink.txt
+Changed.
+```
+Note that `source.txt` and `hardLink.txt` has the same inode number, and they are exactly the same! Changes in one file is seen by the other, and removing one hard link doesn't affect the other hard links.
+```
+    inode ["This is the source file."]   
+            ^           ^                       
+            |           |                    
+        source.txt   hardLink.txt
+```
+
+
 ### Sectors and Blocks
 
 Disks perform read/write at *sector* granularity. In JOS, each sector is 512 bytes. FS uses disk storage at *block* granularity. So sector size is a hardware property, while block size is a software quantity. A FS's block size must be a multiple of the underlying disk. Our FS use block size of 4096 bytes, matching the processor's page size.
@@ -20,9 +84,16 @@ Disks perform read/write at *sector* granularity. In JOS, each sector is 512 byt
 
 Metadata for the FS itself is stored at *superblocks*. Our FS has exactly one superblock, at block 1. Defined by `struct Super`.
 
+The picture above is specific to Lab5 FS, as it doesn't have inode regions. A more general organization of on-disk structures of FS:
+```
++-------------+------------+--------------+-------------+--------------+-------------+
+| boot sector | superblock | inode bitmap | data bitmap | inode region | data region |
++-------------+------------+--------------+-------------+--------------+-------------+
+```
+
 ### File Meta-data
 
-![FileStructore](./FileStructore.png)
+![FileStructure](FileStructure.png)
 
 Defined in `struct File`. As we don't have inodes, the metadata is stored in a directory entry on disk. Unlike in real FSes, we use this to represent file metadata as it appears both on disk and in memory.
 

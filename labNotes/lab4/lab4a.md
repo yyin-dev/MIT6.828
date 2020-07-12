@@ -493,11 +493,11 @@ index fc42204..2dda2ac 100644
         panic("iret failed");  /* mostly to placate the compiler */
     }
     ```
-    `%0` refers to the argument `tf`. So setting `%esp` to be `tf` restores the kernel stack to the initial state (when just trapping into kernel mode) completely. Check `user/dumbfork.c:dumbfork`.
+    `%0` refers to the argument `tf`. So setting `%esp` to be `tf` restores the kernel stack to the initial state (when just trapping into kernel mode) completely.
 
 ## System Calls for Environment Creation
 
-`Fork()` is a system call in Unix, while JOS provides more primitive set of syscalls such that `fork()` can be implemented completely in user space. 
+`Fork()` is a system call in Unix, while JOS provides more primitive set of syscalls such that `fork()` can be implemented completely in user space. Check `user/dumbfork.c:dumbfork`.  
 
 > **Exercise 7.** Implement the system calls described above in `kern/syscall.c` and make sure `syscall()` calls them. You will need to use various functions in `kern/pmap.c` and `kern/env.c`, particularly `envid2env()`. For now, whenever you call `envid2env()`, pass 1 in the `checkperm` parameter. Be sure you check for any invalid system call arguments, returning `-E_INVAL` in that case.
 
