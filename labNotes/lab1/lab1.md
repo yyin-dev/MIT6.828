@@ -1,4 +1,4 @@
-## Brennan's Guide to Inline Assembly
+## Brennan's Guide to Inline Assembly [x]
 
 - Operator size specification
 
@@ -175,7 +175,8 @@ An ELF binary starts with a fixed-length *ELF header*, followed by a variable-le
 
 - `.text`: the program's executable instructions.
 - .`rodata`: read-only data, like ASCII string constants produced by the C compiler.
-- `.data`: the program's initialized data, like *initialized* global variables.
+- `.data`: the program's initialized data, like *initialized* global variables.  
+- `.bss`: space for *uninitialized* global variables, the space is zeroed.
 
 When linker computes the memory layout of the program, it reserves space for *unitialized* global variables in the `.bss` section, immediately after `.data`. C requires that unitialized global variables start with value of zero. There's no need to store contents for `.bss` in the ELF binary. Instead, the linker records the address and size of the `.bss` section. The loader arranges to zero the `.bss` section when loading the executable into the memory.
 
@@ -398,7 +399,7 @@ Before setting `%cr0`, memory references `0x0010000` and `0xf0100000` are physic
 
 If mapping weren't in place (`movl %eax, %cr0` is commented), next instruction `jmp    *%eax` would fail, since it tries to jump to physical address `0xf010002f`. 
 
-### Formatted Printing to the Console
+### Formatted Printing to the Console [x]
 
 We have to implement `printf` ourselves, in `kern/printf.c`, `lib/printfmt.c,` `kern/console.c`. 
 
@@ -622,9 +623,9 @@ As we know, memory is located from lower address to higher address, the stack sp
 
 ```
 +-------------------+ <-- bootstacktop
-|					|
-|	  KSTKSIZE		|
-|					|
+|                   |
+|	  KSTKSIZE      |
+|                   |
 +-------------------+ <-- bootstack
 ```
 
@@ -764,8 +765,8 @@ This achieves full score for Lab1.
 
 ## Summary
 
-Part1 talks about physical address space layout and how BIOS works to load boot loader into memory at `0x7c00`.
+Part1 talks about physical address space layout and BIOS, which loads boot loader into memory at `0x7c00`.
 
 Part2 talks about how boot loader switches from 16-bit real mode to 32-bit protected mode, and load kernel from disk into physical memory. Make sure you understand `boot/boot.S` and `boot/main.c`. It also mentions link address, load address, ELF format,  basic usage of `objdump`.
 
-Part3 talks about the starting code of kernel. `kern/entry.S` firstly sets up hardware-supported virtual memory, switches to use virtual memory by setting %cr0, and jumps to C code at high address. Then we see how formatted printing is implemented and how kernel stack is configured. We familarize ourselves with x86 calling convention by implementing the `backtrace` command.
+Part3 talks about the starting code of kernel. `kern/entry.S` sets up hardware-supported virtual memory, switches to use virtual memory by setting `CR0_PG` flag in %cr0, and jumps to C code at high address. Then we see how formatted printing is implemented and how kernel stack is configured. We familarize ourselves with x86 calling convention by implementing the `backtrace` command.

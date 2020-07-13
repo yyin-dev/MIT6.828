@@ -44,7 +44,7 @@ index 81d673f..1e0b129 100644
 
 At normal execution, the user environment runs on the *normal* user stack, in region `[USTACKTOP-PGSIZE, USTACKTOP]`. When page fault occurs, the kernel would make the user environment run the designated page fault handler on the *user exception stack*. In essence, we will implement automatic "stack switching" for the user environment, in a similar way that the x86 *processor* already implements stack switching when transferring from user mode to kernel mode! Recall the processor uses information in TSS to do this stack switching.
 
-Each user environment that wants to support user-level page fault handling needs to allocate memory for its own exception stack, using the `sys_page_alloc()` system call in part A.
+Each user environment that wants to support user-level page fault handling needs to allocate memory for its own exception stack, using the `sys_page_alloc()` system call in part A. The exception stack was allocated in `lib/pgfault.c:set_pgfault_handler`. If another page fault happens when executing the page fault handler, `tf->tf_esp` points to the exception stack already. 
 
 ### Invoking the User Page Fault Handler
 

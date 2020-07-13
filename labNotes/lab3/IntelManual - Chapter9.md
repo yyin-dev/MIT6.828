@@ -49,11 +49,13 @@ The IDT may contain any of 3 kinds of descriptors:
 
 ![img](https://pdos.csail.mit.edu/6.828/2018/readings/i386/fig9-3.gif)
 
+Each interrupt/trap descriptor contains a selector into the descritptor and an offset.
+
 ## 9.6 Interrupt Tasks and Interrupt Procedures
 
 When indexing into the IDT, if getting an interrupt gate or trap gate, the handler is invoked.
 
-An interrupt/trap gate points indirectly to a procedure. The selector of the gate points to an executable-segment descriptor in GDT/current LDT. The offset of the gate points to the beginning of the handler.
+An interrupt/trap gate points **indirectly** to a procedure. The selector of the gate points to an executable-segment descriptor in GDT/current LDT. The offset of the gate points to the beginning of the handler.
 
 ![img](https://pdos.csail.mit.edu/6.828/2018/readings/i386/fig9-4.gif)
 
@@ -63,7 +65,7 @@ The control transfer to a handler uses the kernel stack, indicated by TSS, to st
 
 `iret` is used to return from interrupt handler. 
 
-The different between an interrupte gate and a trap gate is in the effect on IF. An interrupt that vectors through an interrupt gate resets IF, preventing other interrupts from intefering. A subsequent `iret` restores IF. An interrupt through the exception gate doesn't change IF. 
+The difference between an interrupte gate and a trap gate is in the effect on IF. An interrupt that vectors through an interrupt gate resets IF, preventing other interrupts from intefering. A subsequent `iret` restores IF. An interrupt through the trap gate doesn't change IF (so interrupts can happen during system calls). 
 
 The processor doesn't permit an interrupt to transfer control to a procedure of less privilege.
 
@@ -73,9 +75,9 @@ The processor pushes an error code for some exceptions.
 
 ## 9.8 Exception Condition
 
-Faults: The CS and EIP values saved when a fault is reported point to the instruction causing the fault.
+Faults: The CS and EIP values saved when a fault is reported point to the instruction causing the fault. So **the same instruction is re-executed** when handler finishes. 
 
-Traps: The CS and EIP values stored when the trap is reported point to the instruction **dynamically** after the instruction causing the trap. If a trap is detected during an instruction that alters program flow, the reported values of CS and EIP reflect the alteration of program flow.
+Traps: The CS and EIP values stored when the trap is reported point to the instruction **dynamically** after the instruction causing the trap. If a trap is detected during an instruction that alters program flow, the reported values of CS and EIP reflect the alteration of program flow. So **the next instruction is executed** when handler finishes.
 
 Aborts: An abort is an exception that permits neither precise location of the instruction causing the exception nor restart of the program that caused the exception. Aborts are used to report severe errors.
 

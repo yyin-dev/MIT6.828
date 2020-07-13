@@ -1,4 +1,4 @@
-# Lab3 Part B
+# Lab3 Part B: Page Faults, Breakpoints Exceptions and System Calls
 
 > **Exercise 5.** Modify `trap_dispatch()` to dispatch page fault exceptions to `page_fault_handler()`. You should now be able to get make grade to succeed on the `faultread`, `faultreadkernel`, `faultwrite`, and `faultwritekernel` tests. If any of them don't work, figure out why and fix them. 
 

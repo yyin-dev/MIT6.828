@@ -76,15 +76,17 @@ This passes `check_page_free_list` but fails `check_kern_pgdir`.
 
    ```
    	myentry.S									boot.S
-   Disable interrupts;						Same action;
-   Set up segment registers;				Same action;
-   										Enable A20 gate;
-   Switch to protected-mode;				Same action;
-   Set up procted-mode segment registers;	Same action;
-   Set up initial page table;				Call bootmain(), which would jump to entry.S;	Jump to mp_main();								entry.S
-   										Load kern_pgdir as page tables;
-   										Jump to high address;
-   										Call i386_init();
+   Disable interrupts;                      Same action;
+   Set up segment registers;                Same action;
+                                            Enable A20 gate;
+   Switch to protected-mode;                Same action;
+   Set up procted-mode segment registers;   Same action;
+   Set up initial page table;               Call bootmain(), which would jump to entry.S;	
+   Jump to mp_main();								
+                                                entry.S
+                                            Load kern_pgdir as page tables;
+                                            Jump to high address;
+                                            Call i386_init();
    ```
 
    The purpose of macro `MPBOOTPHYS` is to convert virtual address to physical address.
@@ -117,7 +119,7 @@ This passes `check_page_free_list` but fails `check_kern_pgdir`.
 
 ## Per-CPU State and Initialization
 
-Explains per-CPU state in JOS and changes from previous labs.
+Explains per-CPU state in JOS and changes from previous labs. Per-CPU state: kernel stack, TSS, `curenv`, register set.
 
 > **Exercise 3.** Modify `mem_init_mp()` (in `kern/pmap.c`) to map per-CPU stacks starting at `KSTACKTOP`, as shown in `inc/memlayout.h`. The size of each stack is `KSTKSIZE` bytes plus `KSTKGAP` bytes of unmapped guard pages. Your code should pass the new check in `check_kern_pgdir()`.
 
@@ -452,9 +454,9 @@ index fc42204..2dda2ac 100644
 
    ```
    Proc1_user --> Proc1_kernel --> schedulerThread --> Proc2_kernel --> Proc2_user 
-   		    ^				^					^				  ^
-   		    |				|					|				  |
-   		  trapframe		context				context			trapframe
+   		       ^				^					^				  ^
+   		       |				|					|				  |
+   		     trapframe		  context			  context			trapframe
    ```
 
     A possible point of confusion is "thread" and "process" term in xv6. The "user environmen", `struct Env`, in JOS is the same as "process", `struct proc`, in xv6, which is similar to the common meaning of Linux process. How about the "user thread" and "kernel thread"? Why there's no such thing as `struct Thread`?
@@ -491,11 +493,11 @@ index fc42204..2dda2ac 100644
         panic("iret failed");  /* mostly to placate the compiler */
     }
     ```
-    `%0` refers to the argument `tf`. So setting `%esp` to be `tf` restores the kernel stack to the initial state (when just trapping into kernel mode) completely!
+    `%0` refers to the argument `tf`. So setting `%esp` to be `tf` restores the kernel stack to the initial state (when just trapping into kernel mode) completely. Check `user/dumbfork.c:dumbfork`.
 
 ## System Calls for Environment Creation
 
-`Fork()` is a system call in Unix, while JOS provides more primitive set of syscalls such that `fork()` can be implemted completely in user space. 
+`Fork()` is a system call in Unix, while JOS provides more primitive set of syscalls such that `fork()` can be implemented completely in user space. 
 
 > **Exercise 7.** Implement the system calls described above in `kern/syscall.c` and make sure `syscall()` calls them. You will need to use various functions in `kern/pmap.c` and `kern/env.c`, particularly `envid2env()`. For now, whenever you call `envid2env()`, pass 1 in the `checkperm` parameter. Be sure you check for any invalid system call arguments, returning `-E_INVAL` in that case.
 

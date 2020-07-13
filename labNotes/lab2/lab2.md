@@ -18,7 +18,7 @@ void page_free(struct PageInfo *pp);
 
 `boot_alloc`: allocates physical memory from the end of the `.bss` section of the kernel. 
 
-`mem_init`: allocates space for `kern_pgdir` (page table used by kernel), as well as `pages` array of `struct PageInfo`.
+`mem_init`: allocates space for `kern_pgdir` and `pages` array of `struct PageInfo`, using `boot_alloc`.
 
 `page_init`: initialize `pages` and `page_free_list`, determining available physical memory.
 
@@ -56,9 +56,15 @@ void page_remove(pde_t *pgdir, void *va)
 
 Add code in `mem_init` to map `pages` at `UPAGES`, kernel stack at `KSTACKTOP-KSTKSIZE`, and 256MB of physical memory at `KERNBASE`. Basically three calls to `boot_map_region`. Because of this, JOS can use at most 256MB of physical memory!
 
+## Summary
+Part 1 allocates space for data structures (`kern_pgdir`, `pages`, and `page_free_list`) and provides functions to manage physical memory, mainly by manipulating two data structures: `pages` and `page_free_list`.  
+
+Part 2 provides functions to manage virtual memory, by manipulating physical memory (using functions in Part 1) and page table.
+
+Part 3 does several mappings into user space (so that user can read some of kernel's data structure), sets up kernel stack, and maps physical memory into kernel's address space. The virtual memory system is set up now. 
 
 
-## Lab Questions
+## Lab Questions [x]
 
 1. Assuming that the following JOS kernel code is correct, what type should variable `x` have, `uintptr_t` or `physaddr_t`?
 

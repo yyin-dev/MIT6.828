@@ -1,4 +1,4 @@
-# Lab3 Part A
+# Lab3 Part A: User Envrionment and Exception Handling
 
 > **Exercise 1.** Modify `mem_init()` in `kern/pmap.c` to allocate and map the `envs` array. This array consists of exactly `NENV` instances of the `Env` structure allocated much like how you allocated the `pages` array. Also like the `pages` array, the memory backing `envs` should also be mapped user read-only at `UENVS` (defined in `inc/memlayout.h`) so user processes can read from this array.
 >
@@ -45,17 +45,20 @@ Easy. Very similar to `pages` in Lab2.
 
 - `env_setup_vm`: use `kern_pgdir` as a template. Questions:  
     - Why we only need to copy `kern_pgdir`, the page directory of the kernel? How about the page tables pointed to by the page directory?   
-    Answer: note that both page directory and page tables stores *physical addresses*, so duplicating the page directory means that page tables for kernel memory are shared among different user environments. 
+    Answer: note that both page directory and page tables stores *physical addresses*, so duplicating the page directory means that page tables for kernel memory are **shared** among different user environments. 
 
-    - `kern_pgdir` is duplicated into user environment's page directory when the user environment is created. What if `kern_pgdir` is modified later? How to push this change to the page tables of existing user environments?  
+    - `kern_pgdir` is duplicated into user environment's page directory when the user environment is created. What if the kernel part of the page table is modified later (by the kernel code)? How to sync this change to the page tables of existing user environments?  
     Answer: This can never happen. Consider the memory layout of a user environment in JOS. In `pamp.c/mem_init`, all physical memory is mapped at `[KERNBASE, 0xFFFFFFFF]` into kernel's address space. Page fault can happen in two cases: (1) the memory is purged to disk; (2) the memory is not mapped. As JOS doesn't support purging memory content to disk, so page fault only happens when the memory is not mapped. However, since all physical memory is mapped into kernel's address space, page fault can never happen in kernel mode! Actually, check `page_fault_handler` in `trap.c`, page fault in kernel mode is considered a bug and the kernel panics.  
-    Lab3B exercise 9 has explanation why page fault should never happen in kernel mode from another perspective: if page fault happens when manipulating kernel's own data structures, this is a bug and should panic; the kernel may also need to dereferencing memory address provided by user. So kernel should always check/verify the address before using it, and take whatever actions is needed (kill ths process? dynamically map a new page?).  
-    So in short 3 reasons why page fault shouldn't happen in kernel mode:  
+
+        Lab3B exercise 9 explains why page fault should never happen in kernel mode from another perspective: if page fault happens when manipulating kernel's own data structures, this is a bug and should panic; the kernel may also need to dereferencing memory address provided by user. So kernel should always check/verify the address before using it, and take whatever actions is needed (kill ths process? dynamically map a new page?).  
+
+        In short, 3 reasons why page fault shouldn't happen in kernel mode:  
+
         - All physical memory is mapped into kernel's address space above `KERNBASE`;  
 
         - If page fault happens when manipulating kernel's own data strcture, this is a bug;  
         
-        - Before using address passed as argument to syscall, kernel should check if the address is valid and take suitable actions.       
+        - Before using address in user's address space, kernel should check if the address is valid and take suitable actions.       
 
         Side note: As `KERNBASE = 0xF0000000`, this limits the size of physical memory that can be used, 256MB. This also means that a user environment can use at most 256MB of physical memory, so user address space is at most 256MB. 
 
@@ -227,7 +230,7 @@ To provide protection:
 - The Task State Segment (TSS)
   Before executing the handler, the processor needs to save the *old* processor state ike %eip and %cs for later resumption. This should be stored on the kernel stack, not user stack. 
 
-  A *task state segment* (TSS) specifies the segment selector and address of the stack. The processor pushes %ss, %esp, %eflags, %cs, %eip, and an optional error code, onto the kernel stack. Then it loads %cs, %eip from the interrupt descriptor in the IDT, and sets %esp and %ss to refer to the new stack. The fields in TSS is `SS0` and `ESP0`, since the handler executes with `CPL = 0`.
+  A *task state segment* (TSS) specifies the segment selector and address of the kernel stack. The processor pushes %ss, %esp, %eflags, %cs, %eip, and an optional error code, onto the kernel stack. Then it loads %cs, %eip from the interrupt descriptor in the IDT, and sets %esp and %ss to refer to the new stack. The fields in TSS is `SS0` and `ESP0`, since the handler executes with `CPL = 0`.
 
   In JOS, TSS is only used to define the kernel stack that the kernel should switch to when it transfers from user mode to kernel mode. 
 
@@ -244,7 +247,7 @@ Let's say the processor is executing code in a user mode and encounters a divide
 2. Pushes to the kernel stack, starting at address `KSTACKTOP`:
 
    ```
-   					 +--------------------+ KSTACKTOP             
+                        +--------------------+ KSTACKTOP             
                         | 0x00000 | old SS   |     " - 4
                         |      old ESP       |     " - 8
                         |     old EFLAGS     |     " - 12
@@ -333,7 +336,7 @@ struct Trapframe {
 - The `trap` function in `trap.c` executes. 
 - In xv6, the trap handler returns and `trapret` pops argument from the stack and calls `iret` to restore the registers. In JOS, `trap` calls `trap_dispatch` to dispatch to specific handler. After that `trap` calls `env_run` to pop registers and fall back into user mode. Thus, for JOS, no `trapret` is needed. But both xv6 and JOS pops registers from the kernel stack and falls back into the user mode.
 
-Review xv6. `vectors.pl` generates `vectors.S`, the vector entries to the handlers. In `trap.c`, `tvinit` sets up the IDT. When interrupt happens, hardware switches stack, pushes some register values onto the kernel stack, and jumps to the vector entry.
+For xv6, `vectors.pl` generates `vectors.S`, the vector entries to the handlers. In `trap.c`, `tvinit` sets up the IDT. When interrupt happens, hardware switches stack, pushes some register values onto the kernel stack, and jumps to the vector entry.
 
 For JOS, vector entries are generated manually using the two macros in `trapentry.S`, using constants defined in `inc/trap.h`. `kern/trap.c` sets up the IDT in a similar way as `tvinit` in xv6. `_alltraps` is also defined in `trapentry.S`, which is extremely similar to `trapentry.S` in xv6. The only difference is that `struct Trapframe` is defined differently in xv6 and JOS, so some registers are pushed in xv6 but not in JOS. Though implemented differently, the idea is exactly the same.
 

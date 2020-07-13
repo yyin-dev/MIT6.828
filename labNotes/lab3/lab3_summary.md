@@ -8,7 +8,7 @@ JOS environments are conceptually similar to Unix processes.
 
 Exercise 1: Allocate and map `envs` array at `UENVS`. 
 
-Exercise 2: Write functions to allocate, create and run environments.
+Exercise 2: Write functions to create, set up, and run environments.
 
 Exercise 3: read about interrupt/exception/syscall mechanism.
 
