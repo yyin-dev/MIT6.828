@@ -303,7 +303,7 @@ EXEC_P, HAS_SYMS, D_PAGED
 start address 0x0010000c
 ```
 
-> **Exercise 8.** Examine the 8 words of memory at 0x00100000 at the point the BIOS enters the boot loader, and then again at the point the boot loader enters the kernel. Why are they different? What is there at the second breakpoint?
+> **Exercise 6.** Examine the 8 words of memory at 0x00100000 at the point the BIOS enters the boot loader, and then again at the point the boot loader enters the kernel. Why are they different? What is there at the second breakpoint?
 
 When BIOS enters boot loader, the memory location contains all zeros:
 
